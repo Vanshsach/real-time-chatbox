@@ -73,6 +73,15 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`User Disconnected: ${socket.id}`);
   });
+  // User is typing
+  socket.on("typing", (data) => {
+    socket.to(data.room).emit("show_typing", data.username);
+  });
+
+  // User stopped typing
+  socket.on("stop_typing", (room) => {
+    socket.to(room).emit("hide_typing");
+  });
 });
 
 const PORT = process.env.PORT || 5000;

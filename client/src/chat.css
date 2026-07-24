@@ -122,3 +122,10 @@ body{
 .joinChatContainer button:hover{
     background:#075e54;
 }
+
+.typing-indicator {
+  padding: 8px 15px;
+  color: #666;
+  font-style: italic;
+  font-size: 14px;
+}

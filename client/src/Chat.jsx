@@ -5,10 +5,12 @@ import "./chat.css";
 function Chat({ username, room }) {
   const [currentMessage, setCurrentMessage] = useState("");
   const [messageList, setMessageList] = useState([]);
+  const [typingUser, setTypingUser] = useState("");
 
   const messagesEndRef = useRef(null);
+  const typingTimeout = useRef(null);
 
-  // Load previous messages and listen for new ones
+  // Load previous messages
   useEffect(() => {
     socket.emit("get_messages", room);
 
@@ -20,13 +22,25 @@ function Chat({ username, room }) {
       setMessageList((list) => [...list, data]);
     });
 
+    socket.on("show_typing", (user) => {
+      if (user !== username) {
+        setTypingUser(user);
+      }
+    });
+
+    socket.on("hide_typing", () => {
+      setTypingUser("");
+    });
+
     return () => {
       socket.off("previous_messages");
       socket.off("receive_message");
+      socket.off("show_typing");
+      socket.off("hide_typing");
     };
-  }, [room]);
+  }, [room, username]);
 
-  // Auto scroll
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -45,7 +59,24 @@ function Chat({ username, room }) {
 
     socket.emit("send_message", messageData);
 
+    socket.emit("stop_typing", room);
+
     setCurrentMessage("");
+  };
+
+  const handleTyping = (e) => {
+    setCurrentMessage(e.target.value);
+
+    socket.emit("typing", {
+      room,
+      username,
+    });
+
+    clearTimeout(typingTimeout.current);
+
+    typingTimeout.current = setTimeout(() => {
+      socket.emit("stop_typing", room);
+    }, 1000);
   };
 
   return (
@@ -66,19 +97,30 @@ function Chat({ username, room }) {
           >
             <strong>{msg.author}</strong>
             <p>{msg.message}</p>
-            <span>{msg.time}</span>
+            <small>{msg.time}</small>
           </div>
         ))}
 
         <div ref={messagesEndRef}></div>
       </div>
 
+      {typingUser && (
+        <div className="typing-indicator">
+          {typingUser} is typing...
+        </div>
+      )}
+
       <div className="chat-footer">
         <input
           type="text"
           value={currentMessage}
           placeholder="Type a message..."
-          onChange={(e) => setCurrentMessage(e.target.value)}
+          onChange={handleTyping}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              sendMessage();
+            }
+          }}
         />
 
         <button onClick={sendMessage}>Send</button>
